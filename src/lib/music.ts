@@ -5,6 +5,13 @@ import prism from "prism-media"
 import { Bot } from "../bot"
 import log from "./logger"
 
+class CustomEncoder extends prism.opus.Encoder {
+  public setBitrate(bitrate: number): void {
+    (this.encoder.applyEncoderCTL || this.encoder.encoderCTL)
+      .apply(this.encoder, [4002, Math.min(96e3, Math.max(8e3, bitrate))]);
+  }
+}
+
 /**
  * @param length Track length in seconds
  */
@@ -14,7 +21,7 @@ export type Track = {
   author_url: string,
   url: string,
   thumbnail_url: string,
-  length: number 
+  length: number,
 }
 
 export default class Music {
@@ -30,15 +37,16 @@ export default class Music {
   public position: number = 0
   public status: 'Idle' | 'Playing' | 'Paused' = 'Idle'
   private ffmpeg?: ChildProcessWithoutNullStreams
-  private prism: prism.opus.Encoder
+  private encoder: prism.opus.Encoder
   
 
   constructor(guildId: string, bot: Bot) {
     this.guildId = guildId
     this.bot = bot
 
-    this.prism = new prism.opus.Encoder({channels: 2, rate: 48000, frameSize: 960})
-    this.prism.on('data', (packet) => {
+    this.encoder = new CustomEncoder({channels: 2, rate: 48000, frameSize: 960})
+    
+    this.encoder.on('data', (packet) => {
       const conn = getVoiceConnection(this.guildId)
       if (conn) { conn.playOpusPacket(packet) }
       this.position += 20
@@ -103,6 +111,11 @@ export default class Music {
     this.status = "Idle"
     if (this.ffmpeg) { this.ffmpeg.kill() }
     this.ffmpeg = undefined
+    this.setBitrate(64)
+  }
+
+  setBitrate(kbps: number): void {
+    this.encoder.setBitrate(kbps * 1000)
   }
 
   async get_track_metadata(query: string): Promise<void | Track> {
@@ -193,15 +206,15 @@ export default class Music {
       "-re", // Read at native speed
       "-ss", `${position}ms`, // The start time in ms
       "-reconnect", "1", "-multiple_requests", "1", // Reconnect
-      "-i", url, // Set input to stream URL
       "-user_agent", this.userAgent,
+      "-i", url, // Set input to stream URL
       "-acodec", "pcm_s16le", // Get a pcm stream
       "-ar", "48000", // Sample rate: 48kHz
       "-ac", "2", // 2 Audio channels
       "-f", "s16le", // Output raw pcm packets
       "-" // Output to stdout
     ], {stdio: "pipe"})
-    this.ffmpeg.stdout.on("data", chunk => this.prism.write(chunk))
+    this.ffmpeg.stdout.on("data", chunk => this.encoder.write(chunk))
     
     this.status = "Playing"
     if (this.announceChannel) {

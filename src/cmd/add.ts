@@ -14,7 +14,6 @@ export default {
   },],
 
   async exec(bot, interaction) {
-    const query = interaction.options.getString("query", true)
     const guildMusic = bot.guildData.get(interaction.guildId!).music
     const state = guildMusic.ensureVoice(interaction)
     if (!state) {
@@ -25,6 +24,7 @@ export default {
       return
     }
     await interaction.deferReply()
+    const query = interaction.options.getString("query", true)
     const track = await guildMusic.get_track_metadata(query)
     if (track) {
       await interaction.editReply({embeds:[new MessageEmbed({
