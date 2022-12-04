@@ -1,5 +1,5 @@
 {
-  "name": "polgarmester-bot",
+  "name": "generic-discord-music-bot-3",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
@@ -10,14 +10,14 @@
   "author": "varma01",
   "license": "MIT",
   "dependencies": {
-    "@discordjs/opus": "^0.9.0",
+    "@discordjs/opus": "^0.8.0",
     "@discordjs/voice": "^0.14.0",
     "@types/node": "^18.11.9",
     "discord.js": "^13.8.0",
     "dotenv": "^16.0.3",
+    "sodium": "^3.0.2",
     "prism-media": "^1.3.4",
     "ts-node": "^10.8.1",
-    "typescript": "^4.7.4",
-    "sodium": "^3.0.2"
+    "typescript": "^4.7.4"
   }
 }
