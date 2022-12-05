@@ -1,6 +1,6 @@
 import { MessageEmbed } from "discord.js";
 import { ICommand } from "../lib/command";
-import shuffleArr from "../lib/shuffle";
+import shuffleArr from "../lib/shuffleArr";
 
 export default {
   name: "playlist",
