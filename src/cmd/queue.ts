@@ -42,7 +42,7 @@ export default {
               currentStart -= 10
               const fieldsU: any[] = []
               for (const iSU in guildMusic.queue.slice(currentStart, currentStart+10)) {
-                const indexU = parseInt(iSU)
+                const indexU = parseInt(iSU) + currentStart
                 const trackU = guildMusic.queue[indexU]
                 fieldsU.push({
                   name: `#${indexU+currentStart} ${trackU.title}`,
@@ -62,10 +62,10 @@ export default {
               currentStart += 10
               const fieldsU: any[] = []
               for (const iSU in guildMusic.queue.slice(currentStart, currentStart+10)) {
-                const indexU = parseInt(iSU)
+                const indexU = parseInt(iSU) + currentStart
                 const trackU = guildMusic.queue[indexU]
                 fieldsU.push({
-                  name: `#${indexU+currentStart} ${trackU.title}`,
+                  name: `#${indexU} ${trackU.title}`,
                   value: `[[link]](${trackU.url})  [${new Date(trackU.length * 1000).toISOString().substring(11, 19)}]  [${trackU.author}]`,
                 })
               }
