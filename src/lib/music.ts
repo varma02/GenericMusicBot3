@@ -70,6 +70,7 @@ export default class Music {
         // Seems to be reconnecting to a new channel - ignore disconnect
       } catch (error) {
         // Seems to be a real disconnect which SHOULDN'T be recovered from
+        this.pause()
         conn.destroy()
         this.voiceChannelId = undefined
       }
@@ -82,6 +83,20 @@ export default class Music {
     const conn = getVoiceConnection(this.guildId)
     if (conn) { conn.disconnect() }
     this.voiceChannelId = undefined
+  }
+
+  destroy() {
+    const conn = getVoiceConnection(this.guildId)
+    if (conn) {
+      conn.destroy()
+    }
+    this.voiceChannelId = undefined
+    this.clear()
+    this.ffmpeg = undefined
+    if (this.prevNowPlaying) {
+      this.prevNowPlaying.delete()
+    }
+    this.encoder.destroy()
   }
 
   /**
@@ -118,9 +133,42 @@ export default class Music {
     this.encoder.setBitrate(kbps * 1000)
   }
 
+  async get_playlist_metadata(url: string): Promise<void | Track[]> {
+    try { new URL(url) }
+    catch { return }
+    const ytdlp = spawnChildProcess("yt-dlp", [
+      "--print", "extractor",
+      "--print", "webpage_url",
+      "--print", "title",
+      "--print", "channel",
+      "--print", "channel_url",
+      "--print", "duration",
+      "--print", "thumbnail",
+      "--yes-playlist",
+      "--flat-playlist",
+      url,
+    ], {stdio: 'pipe'})
+    let raw_data = ""
+    ytdlp.stdout.on("data", (data) => {raw_data += data})
+    await new Promise((res) => { ytdlp.on('exit', (code) => { res(code) }) })
+    const data = raw_data.trim().split("\n")
+    const response: Track[] = []
+    for (let index = 0; index < data.length; index += 7) {
+      response.push({
+        url: data[index+1],
+        title: data[index+2],
+        author: data[index+3],
+        author_url: data[index+4],
+        length: parseInt(data[index+5]),
+        thumbnail_url: "https://na.na",
+      })
+    }
+    return response
+  }
+
   async get_track_metadata(query: string): Promise<void | Track> {
     try { new URL(query) }
-    catch { query = "ytsearch:" + query }
+    catch { query = "ytsearch1:" + query }
     const ytdlp = spawnChildProcess("yt-dlp", [
       "--print", "extractor",
       "--print", "webpage_url",
@@ -130,21 +178,22 @@ export default class Music {
       "--print", "duration",
       "--print", "thumbnail",
       "--no-playlist",
+      "--flat-playlist",
       "-f", "ba", 
       query,
     ], {stdio: 'pipe'})
-    let response = ""
-    ytdlp.stdout.on("data", (data) => {response += data})
-    await new Promise((res, rej) => { ytdlp.on('exit', (code) => { res(code) }) })
-    const responseL = response.split("\n")
-    if (response) {
+    let raw_data = ""
+    ytdlp.stdout.on("data", (data) => {raw_data += data})
+    await new Promise((res) => { ytdlp.on('exit', (code) => { res(code) }) })
+    const data = raw_data.split("\n")
+    if (raw_data) {
       return {
-        author: responseL[3],
-        author_url: responseL[4],
-        title: responseL[2],
-        length: parseInt(responseL[5]),
-        thumbnail_url: responseL[6],
-        url: responseL[1]
+        author: data[3],
+        author_url: data[4],
+        title: data[2],
+        length: parseInt(data[5]),
+        thumbnail_url: "https://na.na",
+        url: data[1]
       } as Track
     }
   }
