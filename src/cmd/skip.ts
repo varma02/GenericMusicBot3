@@ -14,9 +14,10 @@ export default {
 
   async exec(bot, interaction) {
     const guildMusic = bot.guildData.get(interaction.guildId!).music
+    interaction.deferReply()
     const amount = interaction.options.getInteger("amount", false) || undefined
     const num = (await guildMusic.skip(amount)).length
-    await interaction.reply({embeds:[new MessageEmbed({
+    await interaction.editReply({embeds:[new MessageEmbed({
       description: `⏩ Skipped ${num} track${num == 1 ? "" : "s"}`
     })]})
   }
