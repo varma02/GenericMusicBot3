@@ -41,6 +41,13 @@ export class Bot extends Client {
       client.user.setPresence({status:'online', activities: [{type:'LISTENING', name:'/help'}]})
     })
 
+    this.on("guildDelete", (guild) => {
+      if (this.guildData.has(guild.id)) {
+        this.guildData.get(guild.id).music.destroy()
+        this.guildData.delete(guild.id)
+      }
+    })
+
     this.on('interactionCreate', (interaction) => {
       if (interaction.isCommand()) {
         const cmd = this.commands.get(interaction.commandName)
@@ -53,5 +60,12 @@ export class Bot extends Client {
         }
       }
     })
+  }
+
+  public destroy(): void {
+    this.guildData.forEach((val) => {
+      val.music.destroy()
+    })
+    super.destroy()
   }
 }
