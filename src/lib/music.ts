@@ -198,6 +198,18 @@ export default class Music {
     }
   }
 
+  async remove(from:number, to:number): Promise<number> {
+    if (from < 0 || to < 1 || from >= to) {
+      return 0
+    }
+    const deleted = this.queue.splice(from, (to - from)+1)
+    if (from == 0) {
+      this.status = "Paused"
+      await this.play()
+    }
+    return deleted.length
+  }
+
   async addTracks(...tracks:Track[]) {
     this.queue.push(...tracks)
     if (this.status == "Idle") {
