@@ -277,6 +277,7 @@ export default class Music {
       "-" // Output to stdout
     ], {stdio: "pipe"})
     this.ffmpeg.stdout.on("data", chunk => this.encoder.write(chunk))
+    this.ffmpeg.stderr.on("data", (err) => log("debug", err))
     
     this.status = "Playing"
     if (this.announceChannel) {
