@@ -62,10 +62,10 @@ export class Bot extends Client {
     })
   }
 
-  public destroy(): void {
-    this.guildData.forEach((val) => {
-      val.music.destroy()
-    })
+  async destroy() {
+    for (const data of this.guildData) {
+      await data[1].music.destroy()
+    }
     super.destroy()
   }
 }

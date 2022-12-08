@@ -45,7 +45,7 @@ export default class Music {
     this.bot = bot
 
     this.encoder = new CustomEncoder({channels: 2, rate: 48000, frameSize: 960})
-    
+  
     this.encoder.on('data', (packet) => {
       const conn = getVoiceConnection(this.guildId)
       if (conn) { conn.playOpusPacket(packet) }
@@ -85,7 +85,7 @@ export default class Music {
     this.voiceChannelId = undefined
   }
 
-  destroy() {
+  async destroy() {
     const conn = getVoiceConnection(this.guildId)
     if (conn) {
       conn.destroy()
@@ -94,7 +94,7 @@ export default class Music {
     this.clear()
     this.ffmpeg = undefined
     if (this.prevNowPlaying) {
-      this.prevNowPlaying.delete()
+      await this.prevNowPlaying.delete()
     }
     this.encoder.destroy()
   }
@@ -270,6 +270,7 @@ export default class Music {
       "-user_agent", this.userAgent,
       "-i", url, // Set input to stream URL
       "-acodec", "pcm_s16le", // Get a pcm stream
+      "-bufsize", "1984k",
       "-ar", "48000", // Sample rate: 48kHz
       "-ac", "2", // 2 Audio channels
       "-f", "s16le", // Output raw pcm packets
