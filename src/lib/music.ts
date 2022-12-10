@@ -94,7 +94,8 @@ export default class Music {
     this.clear()
     this.ffmpeg = undefined
     if (this.prevNowPlaying) {
-      await this.prevNowPlaying.delete()
+      try { await this.prevNowPlaying.delete() }
+      catch {}
     }
     this.encoder.destroy()
   }

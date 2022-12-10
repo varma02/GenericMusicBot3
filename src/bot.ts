@@ -38,7 +38,11 @@ export class Bot extends Client {
       }
 
       log('info', `Logged in as ${client.user.username}`)
-      client.user.setPresence({status:'online', activities: [{type:'LISTENING', name:'/help'}]})
+      if (process.env.TESTING = "1") {
+        client.user.setPresence({status:'idle', activities: [{type:'PLAYING', name:'tests'}]})
+      } else {
+        client.user.setPresence({status:'online', activities: [{type:'LISTENING', name:'Biden'}]})
+      }
     })
 
     this.on("guildDelete", (guild) => {
