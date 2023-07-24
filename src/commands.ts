@@ -203,9 +203,10 @@ export const Commands: {[k:string]:ICommand} = {
 			const hour = (interaction.options as any).getInteger("hour", true)
 			const minute = (interaction.options as any).getInteger("minute", true)
 			const second = (interaction.options as any).getInteger("second", true)
-			const seekto = second + minute * 60 + hour * 3600
+			const millis = second * 1000 + minute * 60000 + hour * 3600000
 			guildMusic.pause()
-			guildMusic.position = seekto
+			await new Promise((res)=>setTimeout(res, 300))
+			guildMusic.position = millis
 			guildMusic.resume()
 			await interaction.reply({embeds:[new EmbedBuilder({
 				description: `⏩ Skipped to ${hour}:${minute}:${second}`

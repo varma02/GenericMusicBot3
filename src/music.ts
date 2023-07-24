@@ -272,7 +272,7 @@ class GuildMusic {
       "-loglevel", "error", // stop logging
       "-vn", // No video
       "-re", // Read at native speed
-      "-ss", `${position}ms`, // The start time in ms
+      "-ss", `${position}ms`, // The start time in s
       "-reconnect", "1", "-multiple_requests", "1", // Reconnect
       "-user_agent", this.userAgent, // pls don't ban me
       "-i", url, // Set input to stream URL
