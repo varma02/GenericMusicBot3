@@ -14,8 +14,8 @@ try {
 console.log("Starting up...")
 const bot = new Bot()
 
-for (const x of ['SIGINT', 'SIGTERM', 'SIGKILL', 'SIGHUP']) {
-  process.on(x, () => {
+for (const x of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.once(x, () => {
     console.log(`Got ${x}, exiting...`)
     bot.destroy()
 		H.stop()
