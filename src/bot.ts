@@ -39,4 +39,11 @@ export class Bot extends Client {
 			}
 		})
 	}
+
+	async destroy() {
+    for (const obj of this.guildData.values()) {
+      await obj.destroy()
+    }
+    super.destroy()
+  }
 }
