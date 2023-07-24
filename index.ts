@@ -11,7 +11,7 @@ try {
 	console.warn("Highlight init failed.")
 }
 
-console.log("Initializing...")
+console.log("Starting up...")
 const bot = new Bot()
 
 for (const x of ['SIGINT', 'SIGTERM']) {
@@ -19,7 +19,6 @@ for (const x of ['SIGINT', 'SIGTERM']) {
     console.log(`Got ${x}, exiting...`)
     bot.destroy()
 		H.stop()
-		process.exitCode = 0
   })
 }
 

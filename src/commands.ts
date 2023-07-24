@@ -1,5 +1,4 @@
-import { 
-	ActionRow,
+import {
 	ActionRowBuilder,
   ApplicationCommandOptionData, 
   ApplicationCommandOptionType, 
@@ -43,6 +42,21 @@ export const Commands: {[k:string]:ICommand} = {
 				color: Colors.Red,
 				description: "You are not connected to any voice channels."
 			})], ephemeral: true })
+		},
+	},
+
+
+	"leave": {
+		name: "leave",
+		type: ApplicationCommandType.ChatInput,
+		description: "Disconnects the bot from voice",
+	
+		async exec(bot, interaction) {
+			const guildMusic = bot.guildData.get(interaction.guildId!)
+			guildMusic.leave()
+			await interaction.reply({embeds:[new EmbedBuilder({
+				description: `Leaving, GN 😴💤`
+			})]})
 		},
 	},
 
@@ -91,6 +105,54 @@ export const Commands: {[k:string]:ICommand} = {
 		},
 	},
 
+	
+	"playlist": {
+		name: "playlist",
+		type: ApplicationCommandType.ChatInput,
+		description: "Adds a playlist to the queue",
+		options: [{
+			name: "url",
+			description: "The playlist's URL you want to add",
+			type: ApplicationCommandOptionType.String,
+			required: true,
+		},
+		{
+			name: "shuffle",
+			description: "Shuffle the playlist or not",
+			type: ApplicationCommandOptionType.Boolean,
+			required: false,
+		}],
+	
+		async exec(bot, interaction) {
+			const guildMusic = bot.guildData.get(interaction.guildId!)
+			const state = guildMusic.ensureVoice(interaction)
+			if (!state) {
+				await interaction.reply({embeds:[new EmbedBuilder({
+					description: "I'm not connected to a voice channel",
+					color: Colors.Red,
+				})]})
+				return
+			}
+			await interaction.deferReply()
+			const url = (interaction.options as any).getString("url", true)
+			const shuffle = (interaction.options as any).getBoolean("shuffle", false)
+			const tracks = await guildMusic.get_playlist_metadata(url)
+			if (tracks) {
+				await interaction.editReply({embeds:[new EmbedBuilder({
+					description: `📃 Queued ${tracks.length} tracks`,
+				})]})
+				if (shuffle) { tracks.sort(() => 0.5 - Math.random()) }
+				guildMusic.addTracks(...tracks)
+			} else {
+				await interaction.editReply({embeds:[new EmbedBuilder({
+					description: "Tracks not found",
+					color: Colors.Red,
+				})]})
+			}
+	
+		},
+	},
+
 
 	"skip": {
 		type: ApplicationCommandType.ChatInput,
@@ -110,6 +172,43 @@ export const Commands: {[k:string]:ICommand} = {
 			const num = (await guildMusic.skip(amount)).length
 			await interaction.editReply({embeds:[new EmbedBuilder({
 				description: `⏩ Skipped ${num} track${num == 1 ? "" : "s"}`
+			})]})
+		}
+	},
+
+
+	"seek": {
+		name: "seek",
+		type: ApplicationCommandType.ChatInput,
+		description: "Skips to the specified time in the currently playing track",
+		options: [{
+			name: "hour",
+			description: "Hour",
+			type: ApplicationCommandOptionType.Integer,
+			required: true
+		}, {
+			name: "minute",
+			description: "Minute",
+			type: ApplicationCommandOptionType.Integer,
+			required: true
+		}, {
+			name: "second",
+			description: "Second",
+			type: ApplicationCommandOptionType.Integer,
+			required: true
+		}],
+
+		async exec(bot, interaction) {
+			const guildMusic = bot.guildData.get(interaction.guildId!)
+			const hour = (interaction.options as any).getInteger("hour", true)
+			const minute = (interaction.options as any).getInteger("minute", true)
+			const second = (interaction.options as any).getInteger("second", true)
+			const seekto = second + minute * 60 + hour * 3600
+			guildMusic.pause()
+			guildMusic.position = seekto
+			guildMusic.resume()
+			await interaction.reply({embeds:[new EmbedBuilder({
+				description: `⏩ Skipped to ${hour}:${minute}:${second}`
 			})]})
 		}
 	},
@@ -296,5 +395,51 @@ export const Commands: {[k:string]:ICommand} = {
 				description: `Removed ${removed} tracks 🗑`
 			})]})
 		},
-	}
+	},
+
+
+	"resume": {
+		name: "resume",
+		type: ApplicationCommandType.ChatInput,
+		description: "Resumes playback",
+	
+		async exec(bot, interaction) {
+			const guildMusic = bot.guildData.get(interaction.guildId!)
+			await guildMusic.resume()
+			await interaction.reply({embeds:[new EmbedBuilder({
+				description: "Resuming playback ▶"
+			})]})
+		},
+	},
+
+
+	"pause": {
+		name: "pause",
+		type: ApplicationCommandType.ChatInput,
+		description: "Pauses the currently plaing track",
+	
+		async exec(bot, interaction) {
+			const guildMusic = bot.guildData.get(interaction.guildId!)
+			guildMusic.pause()
+			await interaction.reply({embeds:[new EmbedBuilder({
+				description: "Pausing playback ⏸"
+			})]})
+		},
+	},
+
+
+	"ping": {
+		name: "ping",
+		type: ApplicationCommandType.ChatInput,
+		description: "Replies with the bot's latency",
+		
+		async exec(bot, interaction) {
+			await interaction.reply({embeds:[new EmbedBuilder({
+				fields: [
+					{ name: "💓 Hearthbeat", value: `   ${bot.ws.ping}ms`, inline: true },
+					{ name: "⏱ Latency", value: `   ${Date.now() - interaction.createdTimestamp}ms`, inline: true }
+				]
+			})]})
+		},
+	},
 }

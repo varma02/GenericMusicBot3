@@ -238,15 +238,15 @@ class GuildMusic {
 
   async resume() {
     if (this.status == "Paused") {
-      await this.play(0, this.position)
+      await this.play(this.position)
     }
   }
 
-  async play(queuePosition: number = 0, position: number = 0) {
+  async play(position: number = 0) {
     if (this.ffmpeg) {this.ffmpeg.kill()}
     this.ffmpeg = undefined
     this.position = position
-    const track = this.queue[queuePosition]
+    const track = this.queue[0]
     if (!track) { 
       this.status = "Idle"
       return false 
@@ -259,7 +259,7 @@ class GuildMusic {
     ], {stdio: 'pipe'})
     let url = ""
     ytdlp.stdout.on("data", (data) => { url += data })
-		ytdlp.stderr.on("data", (err) => console.error(`${err}`, {"guild": this.guildId, "track": this.queue[0].url}))
+		ytdlp.stderr.on("data", (err) => console.warn(`${err}`, {"guild": this.guildId, "track": this.queue[0].url}))
     await new Promise((res, rej) => { ytdlp.on('exit', (code) => { res(code) }) })
 
     try { new URL(url) }
@@ -284,7 +284,7 @@ class GuildMusic {
       "-" // Output to stdout
     ], {stdio: "pipe"})
     this.ffmpeg.stdout.on("data", chunk => this.encoder.write(chunk))
-    this.ffmpeg.stderr.on("data", (err) => console.error(`${err}`, {"guild": this.guildId, "track": this.queue[0].url}))
+    // this.ffmpeg.stderr.on("data", (err) => console.warn(`${err}`, {"guild": this.guildId, "track": this.queue[0].url}))
     
     this.status = "Playing"
     if (this.announceChannel) {
