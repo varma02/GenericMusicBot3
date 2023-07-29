@@ -1,24 +1,16 @@
-import { H } from "@highlight-run/node"
 import { Bot } from "./src/bot"
+
+console.log("Starting up...")
 
 const dotenv = require("dotenv")
 dotenv.config()
 
-try {
-	console.log("Initializing highlight...")
-	// H.init({projectID: process.env.H_PID})
-} catch {
-	console.warn("Highlight init failed.")
-}
-
-console.log("Starting up...")
 const bot = new Bot()
 
 for (const x of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.once(x, () => {
     console.log(`Got ${x}, exiting...`)
     bot.destroy()
-		H.stop()
   })
 }
 
