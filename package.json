@@ -1,6 +1,6 @@
 {
   "name": "generic-music-bot-3",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "description": "This is a simple music bot intended to be deployed in ideally 10 Discord servers or less.",
   "main": "index.ts",
   "scripts": {
