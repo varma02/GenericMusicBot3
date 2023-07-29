@@ -319,35 +319,6 @@ export const Commands: {[k:string]:ICommand} = {
 	},
 
 
-	"bitrate": {
-		name: "bitrate",
-		type: ApplicationCommandType.ChatInput,
-		description: "Sets the audio quality",
-		options: [{
-			name: "quality",
-			description: "Bitrate of audio (default: 64kbps)",
-			type: ApplicationCommandOptionType.Integer,
-			choices: [
-				{name: "8kbps", value: 8},
-				{name: "16kbps", value: 16},
-				{name: "32kbps", value: 32},
-				{name: "64kbps", value: 64},
-				{name: "96kbps", value: 96},
-			],
-			required: true,
-		}],
-	
-		async exec(bot, interaction) {
-			const guildMusic = bot.guildData.get(interaction.guildId!)
-			const quality = (interaction.options as any).getInteger("quality", true)
-			guildMusic.setBitrate(quality)
-			await interaction.reply({embeds:[new EmbedBuilder({
-				description: `Bitrate set to: ${quality}kbps  :troll:`
-			})]})
-		},
-	},
-
-
 	"shuffle": {
 		name: "shuffle",
 		type: ApplicationCommandType.ChatInput,
@@ -441,6 +412,21 @@ export const Commands: {[k:string]:ICommand} = {
 					{ name: "⏱ Latency", value: `   ${Date.now() - interaction.createdTimestamp}ms`, inline: true }
 				]
 			})]})
+		},
+	},
+
+
+	"reset": {
+		name: "reset",
+		type: ApplicationCommandType.ChatInput,
+		description: "Try this command if the bot doesn't work",
+		
+		async exec(bot, interaction) {
+			const guildMusic = bot.guildData.get(interaction.guildId)
+			guildMusic.clear()
+			await new Promise((res) => setTimeout(res, 300))
+			bot.guildData.delete(interaction.guildId)
+			await interaction.reply({embeds:[new EmbedBuilder({description: "The bot has been reset ⚙"})]})
 		},
 	},
 }

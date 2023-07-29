@@ -1,14 +1,6 @@
 import { DiscordGatewayAdapterCreator, entersState, getVoiceConnection, joinVoiceChannel, VoiceConnectionStatus } from "@discordjs/voice"
 import { ChildProcessWithoutNullStreams, spawn as spawnChildProcess } from "child_process"
 import { CommandInteraction, Message, EmbedBuilder, TextBasedChannel } from "discord.js"
-import { opus } from "prism-media"
-
-class CustomEncoder extends opus.Encoder {
-  public setBitrate(bitrate: number): void {
-    (this.encoder.applyEncoderCTL || this.encoder.encoderCTL)
-      .apply(this.encoder, [4002, Math.min(96e3, Math.max(8e3, bitrate))]);
-  }
-}
 
 export type Track = {
   title: string,
@@ -34,7 +26,9 @@ export default class GuildData extends Map<string, GuildMusic> {
 
 class GuildMusic {
 
+  readonly thumbnail_404 = "https://http.cat/404.jpg"
   readonly userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:107.0) Gecko/20100101 Firefox/107.0"
+  private ffmpeg?: ChildProcessWithoutNullStreams
   readonly guildId: string
   public voiceChannelId?: string
   public announceChannel?: TextBasedChannel
@@ -42,18 +36,10 @@ class GuildMusic {
   public queue: Track[] = []
   public position: number = 0
   public status: 'Idle' | 'Playing' | 'Paused' = 'Idle'
-  private ffmpeg?: ChildProcessWithoutNullStreams
-  private encoder: CustomEncoder
   
 
   constructor(guildId: string) {
     this.guildId = guildId
-    this.encoder = new CustomEncoder({channels: 2, rate: 48000, frameSize: 960})
-    this.encoder.on('data', (packet) => {
-      const conn = getVoiceConnection(this.guildId)
-      if (conn) { conn.playOpusPacket(packet) }
-      this.position += 20
-    })
   }
 
   join(channelId: string, adapterCreator: DiscordGatewayAdapterCreator) {
@@ -74,9 +60,10 @@ class GuildMusic {
         this.pause()
         conn.destroy()
         this.voiceChannelId = undefined
+        console.debug("Left voice channel %s in guild %s", channelId, this.guildId)
       }
     })
-    return conn
+    console.debug("Joined voice channel %s in guild %s", channelId, this.guildId)
   }
 
   leave() {
@@ -88,9 +75,7 @@ class GuildMusic {
 
   async destroy() {
     const conn = getVoiceConnection(this.guildId)
-    if (conn) {
-      conn.destroy()
-    }
+    if (conn) { conn.destroy() }
     this.voiceChannelId = undefined
     this.clear()
     this.ffmpeg = undefined
@@ -98,7 +83,7 @@ class GuildMusic {
       try { await this.prevNowPlaying.delete() }
       catch {}
     }
-    this.encoder.destroy()
+    console.debug("Destroyed in guild %s", this.guildId)
   }
 
   /**
@@ -116,6 +101,7 @@ class GuildMusic {
       if (userVoice && userVoice.channelId) {
         this.join(userVoice.channelId, interaction.guild.voiceAdapterCreator)
         this.announceChannel = interaction.channel!
+        console.debug("The bot is currently in %d voice channels", interaction.client.voice.adapters.size)
         return true
       }
     }
@@ -128,11 +114,6 @@ class GuildMusic {
     this.status = "Idle"
     if (this.ffmpeg) { this.ffmpeg.kill() }
     this.ffmpeg = undefined
-    this.setBitrate(64)
-  }
-
-  setBitrate(kbps: number): void {
-    this.encoder.setBitrate(kbps * 1000)
   }
 
   async get_playlist_metadata(url: string): Promise<void | Track[]> {
@@ -156,13 +137,16 @@ class GuildMusic {
     const data = raw_data.trim().split("\n")
     const response: Track[] = []
     for (let index = 0; index < data.length; index += 7) {
+      let thumbnail = data[index+6]
+			try { new URL(data[index+6]) }
+			catch { thumbnail = this.thumbnail_404 }
       response.push({
         url: data[index+1],
         title: data[index+2],
         author: data[index+3],
         author_url: data[index+4],
         length: parseInt(data[index+5]),
-        thumbnail_url: "https://http.cat/404.jpg",
+        thumbnail_url: thumbnail,
       })
     }
     return response
@@ -191,15 +175,15 @@ class GuildMusic {
 			const data = raw_data.trim().split("\n")
 			let thumbnail = data[6]
 			try { new URL(data[6]) }
-			catch { thumbnail = "https://http.cat/404.jpg" }
+			catch { thumbnail = this.thumbnail_404 }
 
       return {
+        url: data[1],
+        title: data[2],
         author: data[3],
         author_url: data[4],
-        title: data[2],
         length: parseInt(data[5]),
         thumbnail_url: thumbnail,
-        url: data[1]
       } as Track
     }
   }
@@ -259,12 +243,12 @@ class GuildMusic {
     ], {stdio: 'pipe'})
     let url = ""
     ytdlp.stdout.on("data", (data) => { url += data })
-		ytdlp.stderr.on("data", (err) => console.warn(`${err}`, {"guild": this.guildId, "track": this.queue[0].url}))
-    await new Promise((res, rej) => { ytdlp.on('exit', (code) => { res(code) }) })
+		ytdlp.stderr.on("data", (err) => console.debug("YT-DLP error in guild %s\n\t%s", this.guildId, err))
+    await new Promise((res) => { ytdlp.on('exit', (code) => { res(code) }) })
 
     try { new URL(url) }
     catch {
-      console.error("Invalid url provided to Music#play()", {"guild": this.guildId, "track": this.queue[0].url})
+      console.debug("Invalid stream URL in guild %s at track %s", this.guildId, track.url)
       return
     }
 
@@ -272,19 +256,29 @@ class GuildMusic {
       "-loglevel", "error", // stop logging
       "-vn", // No video
       "-re", // Read at native speed
-      "-ss", `${position}ms`, // The start time in s
+      "-ss", `${position}ms`, // The start time in millis
       "-reconnect", "1", "-multiple_requests", "1", // Reconnect
       "-user_agent", this.userAgent, // pls don't ban me
       "-i", url, // Set input to stream URL
-      "-acodec", "pcm_s16le", // Get a pcm stream
-      "-bufsize", "1984k", // Set buffer size
-      "-ar", "48000", // Sample rate: 48kHz
+      "-acodec", "libopus", // Get an opus stream
+      "-ar", "48000", // Sample rate 48kHz
       "-ac", "2", // 2 Audio channels
-      "-f", "s16le", // Output raw pcm packets
+      "-sample_fmt", "s16", 
+      "-b:a", "64k", // set bitrate to 64kbps
+      "-vbr", "on", // Enable variable bitrate
+      "-compression_level", "8", // duh
+      "-map", "0:a", // Sopy without re-encoding
+      "-f", "fifo", // Start fist in first out buffer
+      "-fifo_format", "data", // Output raw opus packets
+      "-fifo_size", "1000000", // Set buffer size to 1000 kilobytes
       "-" // Output to stdout
     ], {stdio: "pipe"})
-    this.ffmpeg.stdout.on("data", chunk => this.encoder.write(chunk))
-    // this.ffmpeg.stderr.on("data", (err) => console.warn(`${err}`, {"guild": this.guildId, "track": this.queue[0].url}))
+    this.ffmpeg.stdout.on("data", chunk => {
+      const conn = getVoiceConnection(this.guildId)
+      if (conn) { conn.playOpusPacket(chunk) }
+      this.position += 20
+    })
+    this.ffmpeg.stderr.on("data", (err) => console.debug("FFMPEG error in guild %s\n\t%s", this.guildId, err))
     
     this.status = "Playing"
     if (this.announceChannel) {
@@ -295,8 +289,9 @@ class GuildMusic {
         description: `🎶 Now playing: [${track.title}](${track.url})`
       })]})
     }
+
     this.ffmpeg.on("exit", (code) => {
-      //console.debug("debug", `FFMPEG exited with code: ${code}`)
+      console.debug("FFMPEG exited with code %d in guild %s", code, this.guildId)
       if (this.announceChannel) {
         if (this.prevNowPlaying) {
           this.prevNowPlaying.delete().catch(() => {})
