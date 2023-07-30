@@ -89,7 +89,7 @@ export const Commands: {[k:string]:ICommand} = {
 				await interaction.editReply({embeds:[new EmbedBuilder({
 					description: `[${track.title}](${track.url})`,
 					fields: [
-						{ name: "Position", value: "#" + guildMusic.queue.length.toString(), inline: true },
+						{ name: "Position", value: guildMusic.queue.length > 0 ? `#${guildMusic.queue.length}` : "Now playing", inline: true },
 						{ name: "Length", value: new Date(track.length * 1000).toISOString().substring(11, 19), inline: true },
 						{ name: "Author", value: `[${track.author}](${track.author_url})`, inline: true },
 					]})
@@ -218,88 +218,146 @@ export const Commands: {[k:string]:ICommand} = {
 	"queue": {
 		name: "queue",
 		type: ApplicationCommandType.ChatInput,
-		description: "Shows 10 tracks from the queue",
+		description: "Shows the currently playing song and 10 next form the queue",
 	
 		async exec(bot, interaction) {
 			const guildMusic = bot.guildData.get(interaction.guildId!)
-			if (guildMusic.queue.length > 0) {
-				const fields: any[] = []
-				for (const index in guildMusic.queue.slice(0, 10)) {
-					const track = guildMusic.queue[index]
-					fields.push({
-						name: `#${index} ${track.title}`,
-						value: `[${new Date(track.length * 1000).toISOString().substring(11, 19)}] [${track.author}] [[link]](${track.url})`,
-					})
-				}
-				
-				const msg = await interaction.reply({embeds:[new EmbedBuilder({
-					title: "Queue from #0 to #9",
-					fields: fields,
-				})], components: [new ActionRowBuilder<ButtonBuilder>().addComponents([
-					new ButtonBuilder()
-					.setCustomId("bc")
-					.setStyle(ButtonStyle.Primary)
-					.setLabel("<"),
-					new ButtonBuilder()
-					.setCustomId("fw")
-					.setStyle(ButtonStyle.Primary)
-					.setLabel(">"),
-				])], fetchReply: true})
-				
-				const coll = interaction.channel!.createMessageComponentCollector({componentType: ComponentType.Button, time: 60000, message: msg})
-				let currentStart = 0
-				coll.on("collect", async (ci) => {
-					switch (ci.customId) {
-						case "bc":
-							if (currentStart > 0) {
-								currentStart -= 10
-								const fieldsU: any[] = []
-								for (const iSU in guildMusic.queue.slice(currentStart, currentStart+10)) {
-									const indexU = parseInt(iSU) + currentStart
-									const trackU = guildMusic.queue[indexU]
-									fieldsU.push({
-										name: `#${indexU+currentStart} ${trackU.title}`,
-										value: `[[link]](${trackU.url})  [${new Date(trackU.length * 1000).toISOString().substring(11, 19)}]  [${trackU.author}]`,
-									})
-								}
-								await ci.update({embeds:[new EmbedBuilder({
-									title: `Queue from #${currentStart} to #${currentStart+9}`,
-									fields: fieldsU
-								})]})
-							} else {
-								await ci.update({})
-							}
-						break;
-						case "fw":
-							if (currentStart < guildMusic.queue.length - 9) {
-								currentStart += 10
-								const fieldsU: any[] = []
-								for (const iSU in guildMusic.queue.slice(currentStart, currentStart+10)) {
-									const indexU = parseInt(iSU) + currentStart
-									const trackU = guildMusic.queue[indexU]
-									fieldsU.push({
-										name: `#${indexU} ${trackU.title}`,
-										value: `[[link]](${trackU.url})  [${new Date(trackU.length * 1000).toISOString().substring(11, 19)}]  [${trackU.author}]`,
-									})
-								}
-								await ci.update({embeds:[new EmbedBuilder({
-									title: `Queue  from #${currentStart} to #${currentStart+9}`,
-									fields: fieldsU
-								})]})
-							} else {
-								await ci.update({})
-							}
-						break;
+			if (guildMusic.queue.length == 0) {
+				interaction.reply({embeds: [new EmbedBuilder().setDescription("The queue is empty 💀")]})
+			} else {
+				let page = 0
+				const toISO = (s:number) => new Date(s * 1000).toISOString().substring(11, 19)
+				function buildEmbed() {
+					const queueFields = []
+					for (let i = page*10+1; i<page*10+11; i++) {
+						const track = guildMusic.queue[i]
+						if (!track) break
+						queueFields.push({
+							name: `#${i} ${track.title}`.slice(0, 256), 
+							value: `[${toISO(track.length)}] [${track.author}] [[link]](${track.url})`.slice(0, 1024),
+							inline: false,
+						})
 					}
+					const nowPlaying = guildMusic.queue[0]
+					let positionString = ""
+					for (let i = 0; i < 10; i++) {
+						if (Math.floor((guildMusic.position/(nowPlaying.length*1000)*10)) == i) positionString += "●"
+						else positionString += "▬"
+					}
+					return new EmbedBuilder()
+						.setAuthor({name: "Now playing", iconURL: "https://media.discordapp.net/attachments/1018067891435876444/1135173424868753428/vinyl.png"})
+						.setDescription(`[${nowPlaying.title}](${nowPlaying.url}) by ${nowPlaying.author}`.slice(0, 3000) + 
+						`\n${toISO(guildMusic.position/1000)} ${positionString} ${toISO(nowPlaying.length)}` + 
+						(guildMusic.queue.length > 1 ? `\n\n**Next up:**` : ""))
+						.setThumbnail(nowPlaying.thumbnail_url)
+						.addFields(queueFields)
+				}
+				const actionRow = new ActionRowBuilder<ButtonBuilder>()
+					.addComponents(new ButtonBuilder()
+						.setCustomId("back")
+						.setEmoji("⏪")
+						.setStyle(ButtonStyle.Secondary))
+					.addComponents(new ButtonBuilder()
+						.setCustomId("next")
+						.setEmoji("⏩")
+						.setStyle(ButtonStyle.Secondary))
+				const message = await interaction.reply({embeds: [buildEmbed()], components: [actionRow]})
+				const collector = message.createMessageComponentCollector({componentType: ComponentType.Button, time: 60000})
+				collector.on("collect", (compInteraction) => {
+					if (!compInteraction.isButton()) return
+					if (compInteraction.customId == "back" && page > 0) {
+						page--
+						compInteraction.update({embeds: [buildEmbed()]})
+						return
+					} else if (compInteraction.customId == "next" && (page+1)*10 < guildMusic.queue.length-1) {
+						page++
+						compInteraction.update({embeds: [buildEmbed()]})
+						return
+					}
+					compInteraction.update({})
 				})
-				coll.on("end", () =>{
+				collector.once("end", () => {
 					interaction.editReply({components: []})
 				})
-			} else {
-				await interaction.reply({embeds:[new EmbedBuilder({
-					description: "The queue is empty 💀",
-				})]})
 			}
+		// 	if (guildMusic.queue.length > 0) {
+		// 		const fields: any[] = []
+		// 		for (const index in guildMusic.queue.slice(0, 10)) {
+		// 			const track = guildMusic.queue[index]
+		// 			fields.push({
+		// 				name: `#${index} ${track.title}`,
+		// 				value: `[${new Date(track.length * 1000).toISOString().substring(11, 19)}] [${track.author}] [[link]](${track.url})`,
+		// 			})
+		// 		}
+				
+		// 		const msg = await interaction.reply({embeds:[new EmbedBuilder({
+		// 			title: "Queue from #0 to #9",
+		// 			fields: fields,
+		// 		})], components: [new ActionRowBuilder<ButtonBuilder>().addComponents([
+		// 			new ButtonBuilder()
+		// 			.setCustomId("bc")
+		// 			.setStyle(ButtonStyle.Primary)
+		// 			.setLabel("<"),
+		// 			new ButtonBuilder()
+		// 			.setCustomId("fw")
+		// 			.setStyle(ButtonStyle.Primary)
+		// 			.setLabel(">"),
+		// 		])], fetchReply: true})
+				
+		// 		const coll = interaction.channel!.createMessageComponentCollector({componentType: ComponentType.Button, time: 60000, message: msg})
+		// 		let currentStart = 0
+		// 		coll.on("collect", async (ci) => {
+		// 			switch (ci.customId) {
+		// 				case "bc":
+		// 					if (currentStart > 0) {
+		// 						currentStart -= 10
+		// 						const fieldsU: any[] = []
+		// 						for (const iSU in guildMusic.queue.slice(currentStart, currentStart+10)) {
+		// 							const indexU = parseInt(iSU) + currentStart
+		// 							const trackU = guildMusic.queue[indexU]
+		// 							fieldsU.push({
+		// 								name: `#${indexU+currentStart} ${trackU.title}`,
+		// 								value: `[[link]](${trackU.url})  [${new Date(trackU.length * 1000).toISOString().substring(11, 19)}]  [${trackU.author}]`,
+		// 							})
+		// 						}
+		// 						await ci.update({embeds:[new EmbedBuilder({
+		// 							title: `Queue from #${currentStart} to #${currentStart+9}`,
+		// 							fields: fieldsU
+		// 						})]})
+		// 					} else {
+		// 						await ci.update({})
+		// 					}
+		// 				break;
+		// 				case "fw":
+		// 					if (currentStart < guildMusic.queue.length - 9) {
+		// 						currentStart += 10
+		// 						const fieldsU: any[] = []
+		// 						for (const iSU in guildMusic.queue.slice(currentStart, currentStart+10)) {
+		// 							const indexU = parseInt(iSU) + currentStart
+		// 							const trackU = guildMusic.queue[indexU]
+		// 							fieldsU.push({
+		// 								name: `#${indexU} ${trackU.title}`,
+		// 								value: `[[link]](${trackU.url})  [${new Date(trackU.length * 1000).toISOString().substring(11, 19)}]  [${trackU.author}]`,
+		// 							})
+		// 						}
+		// 						await ci.update({embeds:[new EmbedBuilder({
+		// 							title: `Queue  from #${currentStart} to #${currentStart+9}`,
+		// 							fields: fieldsU
+		// 						})]})
+		// 					} else {
+		// 						await ci.update({})
+		// 					}
+		// 				break;
+		// 			}
+		// 		})
+		// 		coll.on("end", () =>{
+		// 			interaction.editReply({components: []})
+		// 		})
+		// 	} else {
+		// 		await interaction.reply({embeds:[new EmbedBuilder({
+		// 			description: "The queue is empty 💀",
+		// 		})]})
+		// 	}
 		},
 	},
 
