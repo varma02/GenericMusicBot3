@@ -36,7 +36,7 @@ export class Bot extends Client {
 						console.warn("Command `%s` was not found. Guild: %s, %s", interaction.commandName, interaction.guild.name, interaction.guildId)
 					}
 				} catch (err) {
-					console.warn("Unexpected error occured in command `%s`. Guild: %s, %s", interaction.commandName, interaction.guild.name, interaction.guildId)
+					console.warn("Unexpected error occured in command `%s`. Guild: %s, %s\n\t%s", interaction.commandName, interaction.guild.name, interaction.guildId, err)
 				}
 			}
 		})
