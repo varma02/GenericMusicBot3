@@ -58,7 +58,7 @@ class GuildMusic {
         ])
       } catch (error) {
         this.pause()
-        conn.destroy()
+        try { conn.destroy() } catch {}
         this.voiceChannelId = undefined
         console.debug("Left voice channel %s in guild %s", channelId, this.guildId)
       }
@@ -75,7 +75,7 @@ class GuildMusic {
 
   async destroy() {
     const conn = getVoiceConnection(this.guildId)
-    if (conn) { conn.destroy() }
+    try { conn.destroy() } catch {}
     this.voiceChannelId = undefined
     this.clear()
     this.ffmpeg = undefined
@@ -165,7 +165,7 @@ class GuildMusic {
       "--print", "thumbnail",
       "--no-playlist",
       "--flat-playlist",
-      "-f", "ba", 
+      "-f", "ba",
       query,
     ], {stdio: 'pipe'})
     let raw_data = ""
@@ -230,6 +230,9 @@ class GuildMusic {
     if (this.ffmpeg) {this.ffmpeg.kill()}
     this.ffmpeg = undefined
     this.position = position
+    if (this.prevNowPlaying) {
+      this.prevNowPlaying.delete().catch(() => {})
+    }
     const track = this.queue[0]
     if (!track) { 
       this.status = "Idle"
@@ -249,6 +252,11 @@ class GuildMusic {
     try { new URL(url) }
     catch {
       console.debug("Invalid stream URL in guild %s at track %s", this.guildId, track.url)
+      this.prevNowPlaying = await this.announceChannel.send({embeds:[new EmbedBuilder({
+        description: `💥 Unexpected error while trying to play ${track.url}`
+      })]})
+      this.queue.shift()
+      this.play()
       return
     }
 
@@ -282,9 +290,6 @@ class GuildMusic {
     
     this.status = "Playing"
     if (this.announceChannel) {
-      if (this.prevNowPlaying) {
-        this.prevNowPlaying.delete().catch(() => {})
-      }
       this.prevNowPlaying = await this.announceChannel.send({embeds:[new EmbedBuilder({
         description: `🎶 Now playing: [${track.title}](${track.url})`
       })]})
