@@ -42,30 +42,6 @@ class GuildMusic {
     this.guildId = guildId
   }
 
-  join(channelId: string, adapterCreator: DiscordGatewayAdapterCreator) {
-    const conn = joinVoiceChannel({
-      adapterCreator: adapterCreator,
-      guildId: this.guildId,
-      channelId: channelId,
-      selfDeaf: true,
-      selfMute: false,
-    })
-    conn.on(VoiceConnectionStatus.Disconnected, async (_oldState, _newState) => {
-      try {
-        await Promise.race([
-          entersState(conn, VoiceConnectionStatus.Signalling, 5000),
-          entersState(conn, VoiceConnectionStatus.Connecting, 5000),
-        ])
-      } catch (error) {
-        this.pause()
-        try { conn.destroy() } catch {}
-        this.voiceChannelId = undefined
-        console.debug("Left voice channel %s in guild %s", channelId, this.guildId)
-      }
-    })
-    console.debug("Joined voice channel %s in guild %s", channelId, this.guildId)
-  }
-
   leave() {
     this.pause()
     const conn = getVoiceConnection(this.guildId)
@@ -99,9 +75,30 @@ class GuildMusic {
     } else if (interaction || (interaction && force)) {
       const userVoice = interaction.guild!.members.resolve(interaction.user)!.voice
       if (userVoice && userVoice.channelId) {
-        this.join(userVoice.channelId, interaction.guild.voiceAdapterCreator)
-        this.announceChannel = interaction.channel!
-        console.debug("The bot is currently in %d voice channels", interaction.client.voice.adapters.size)
+        const conn = joinVoiceChannel({
+          adapterCreator: interaction.guild.voiceAdapterCreator,
+          guildId: this.guildId,
+          channelId: userVoice.channelId,
+          selfDeaf: true,
+          selfMute: false,
+        })
+        conn.on(VoiceConnectionStatus.Disconnected, async (_oldState, _newState) => {
+          try {
+            await Promise.race([
+              entersState(conn, VoiceConnectionStatus.Signalling, 5000),
+              entersState(conn, VoiceConnectionStatus.Connecting, 5000),
+            ])
+          } catch (error) {
+            this.pause()
+            try { conn.destroy() } catch {}
+            this.voiceChannelId = undefined
+            console.debug("Left voice channel %s in guild %s\nThe bot is currently in %d voice channels",
+              userVoice.channelId, this.guildId, interaction.client.voice.adapters.size)
+          }
+        })
+        this.announceChannel = interaction.channel
+        console.debug("Joined voice channel %s in guild %s\nThe bot is currently in %d voice channels", 
+          userVoice.channelId, this.guildId, interaction.client.voice.adapters.size)
         return true
       }
     }
