@@ -77,7 +77,7 @@ export const Commands: {[k:string]:ICommand} = {
 			const state = guildMusic.ensureVoice(interaction)
 			if (!state) {
 				await interaction.reply({embeds:[new EmbedBuilder({
-					description: "I'm not connected to a voice channel",
+					description: "I'm not connected to a voice channel 😡",
 					color: Colors.Red,
 				})]})
 				return
@@ -128,7 +128,7 @@ export const Commands: {[k:string]:ICommand} = {
 			const state = guildMusic.ensureVoice(interaction)
 			if (!state) {
 				await interaction.reply({embeds:[new EmbedBuilder({
-					description: "I'm not connected to a voice channel",
+					description: "I'm not connected to a voice channel 😡",
 					color: Colors.Red,
 				})]})
 				return
