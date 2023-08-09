@@ -137,6 +137,7 @@ class GuildMusic {
     const data = raw_data.trim().split("\n")
     const response: Track[] = []
     for (let index = 0; index < data.length; index += 7) {
+      if (!parseInt(data[index+5])) {continue}
       let thumbnail = data[index+6]
 			try { new URL(data[index+6]) }
 			catch { thumbnail = this._404 }
@@ -177,13 +178,12 @@ class GuildMusic {
 			let thumbnail = data[6]
 			try { new URL(data[6]) }
 			catch { thumbnail = this._404 }
-
       return {
         url: data[1],
         title: data[2],
         author: data[3],
         author_url: data[4],
-        length: parseInt(data[5]),
+        length: parseInt(data[5]) || 0,
         thumbnail_url: thumbnail,
       } as Track
     }
@@ -253,7 +253,7 @@ class GuildMusic {
     try { new URL(url) }
     catch {
       console.debug("Invalid stream URL in guild %s at track %s", this.guildId, track.url)
-      this.prevNowPlaying = await this.announceChannel.send({embeds:[new EmbedBuilder({
+      await this.announceChannel.send({embeds:[new EmbedBuilder({
         description: `💥 Unexpected error while trying to play ${track.url}`
       })]})
       this.queue.shift()
