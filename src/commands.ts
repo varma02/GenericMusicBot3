@@ -403,7 +403,7 @@ export const Commands: {[k:string]:ICommand} = {
 		
 		async exec(bot, interaction) {
 			const guildMusic = bot.guildData.get(interaction.guildId)
-			guildMusic.clear()
+			guildMusic.destroy()
 			await new Promise((res) => setTimeout(res, 300))
 			bot.guildData.delete(interaction.guildId)
 			await interaction.reply({embeds:[new EmbedBuilder({description: "The bot has been reset ⚙"})]})

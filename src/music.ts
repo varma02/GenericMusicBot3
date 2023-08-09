@@ -1,4 +1,4 @@
-import { DiscordGatewayAdapterCreator, entersState, getVoiceConnection, joinVoiceChannel, VoiceConnectionStatus } from "@discordjs/voice"
+import { entersState, getVoiceConnection, joinVoiceChannel, VoiceConnectionStatus } from "@discordjs/voice"
 import { ChildProcessWithoutNullStreams, spawn as spawnChildProcess } from "child_process"
 import { CommandInteraction, Message, EmbedBuilder, TextBasedChannel } from "discord.js"
 
@@ -26,7 +26,7 @@ export default class GuildData extends Map<string, GuildMusic> {
 
 class GuildMusic {
 
-  readonly thumbnail_404 = "https://http.cat/404.jpg"
+  readonly _404 = "https://http.cat/404.jpg"
   readonly userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:107.0) Gecko/20100101 Firefox/107.0"
   private ffmpeg?: ChildProcessWithoutNullStreams
   readonly guildId: string
@@ -50,8 +50,10 @@ class GuildMusic {
   }
 
   async destroy() {
-    const conn = getVoiceConnection(this.guildId)
-    try { conn.destroy() } catch {}
+    try {
+      const conn = getVoiceConnection(this.guildId)
+      conn.destroy() 
+    } catch {}
     this.voiceChannelId = undefined
     this.clear()
     this.ffmpeg = undefined
@@ -88,7 +90,7 @@ class GuildMusic {
               entersState(conn, VoiceConnectionStatus.Signalling, 5000),
               entersState(conn, VoiceConnectionStatus.Connecting, 5000),
             ])
-          } catch (error) {
+          } catch (err) {
             this.pause()
             try { conn.destroy() } catch {}
             this.voiceChannelId = undefined
@@ -130,13 +132,14 @@ class GuildMusic {
     ], {stdio: 'pipe'})
     let raw_data = ""
     ytdlp.stdout.on("data", (data) => {raw_data += data})
+    ytdlp.stderr.on("data", (err) => console.debug("YT-DLP error in guild %s while fetching %s\n\t%s", this.guildId, url, err))
     await new Promise((res) => { ytdlp.on('exit', (code) => { res(code) }) })
     const data = raw_data.trim().split("\n")
     const response: Track[] = []
     for (let index = 0; index < data.length; index += 7) {
       let thumbnail = data[index+6]
 			try { new URL(data[index+6]) }
-			catch { thumbnail = this.thumbnail_404 }
+			catch { thumbnail = this._404 }
       response.push({
         url: data[index+1],
         title: data[index+2],
@@ -167,12 +170,13 @@ class GuildMusic {
     ], {stdio: 'pipe'})
     let raw_data = ""
     ytdlp.stdout.on("data", (data) => {raw_data += data})
+    ytdlp.stderr.on("data", (err) => console.debug("YT-DLP error in guild %s while fetching %s\n\t%s", this.guildId, query, err))
     await new Promise((res) => { ytdlp.on('exit', (code) => { res(code) }) })
     if (raw_data) {
 			const data = raw_data.trim().split("\n")
 			let thumbnail = data[6]
 			try { new URL(data[6]) }
-			catch { thumbnail = this.thumbnail_404 }
+			catch { thumbnail = this._404 }
 
       return {
         url: data[1],
@@ -272,16 +276,20 @@ class GuildMusic {
       "-b:a", "64k", // set bitrate to 64kbps
       "-vbr", "on", // Enable variable bitrate
       "-compression_level", "8", // duh
-      "-map", "0:a", // Sopy without re-encoding
+      "-map", "0:a", // Copy without re-encoding
       "-f", "fifo", // Start fist in first out buffer
       "-fifo_format", "data", // Output raw opus packets
       "-fifo_size", "1000000", // Set buffer size to 1000 kilobytes
       "-" // Output to stdout
     ], {stdio: "pipe"})
     this.ffmpeg.stdout.on("data", chunk => {
-      const conn = getVoiceConnection(this.guildId)
-      if (conn) { conn.playOpusPacket(chunk) }
-      this.position += 20
+      try {
+        const conn = getVoiceConnection(this.guildId)
+        if (conn) { conn.playOpusPacket(chunk) }
+        this.position += 20
+      } catch (err) {
+        console.warn("Error sending opus packet to guild %s at track %s\n\t%s", this.guildId, track.url, err)
+      }
     })
     this.ffmpeg.stderr.on("data", (err) => console.debug("FFMPEG error in guild %s\n\t%s", this.guildId, err))
     
@@ -293,7 +301,9 @@ class GuildMusic {
     }
 
     this.ffmpeg.on("exit", (code) => {
-      console.debug("FFMPEG exited with code %d in guild %s", code, this.guildId)
+      if (code != 0) {
+        console.debug("FFMPEG exited with code %d in guild %s at track %s", code, this.guildId, track.url)
+      }
       if (this.announceChannel) {
         if (this.prevNowPlaying) {
           this.prevNowPlaying.delete().catch(() => {})
