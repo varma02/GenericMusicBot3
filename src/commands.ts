@@ -200,6 +200,13 @@ export const Commands: {[k:string]:ICommand} = {
 
 		async exec(bot, interaction) {
 			const guildMusic = bot.guildData.get(interaction.guildId!)
+			if (guildMusic.queue[0].length == 0) {
+				await interaction.reply({embeds:[new EmbedBuilder({
+					description: `Seeking is disabled for live streams 🚫`,
+					color: Colors.Red,
+				})]})
+				return
+			}
 			const hour = (interaction.options as any).getInteger("hour", true)
 			const minute = (interaction.options as any).getInteger("minute", true)
 			const second = (interaction.options as any).getInteger("second", true)
@@ -209,7 +216,7 @@ export const Commands: {[k:string]:ICommand} = {
 			guildMusic.position = millis
 			guildMusic.resume()
 			await interaction.reply({embeds:[new EmbedBuilder({
-				description: `⏩ Skipped to ${hour}:${minute}:${second}`
+				description: `⏩ Skipped to ${new Date(millis).toISOString().substring(11, 19)}`
 			})]})
 		}
 	},
