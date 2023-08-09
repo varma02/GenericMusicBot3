@@ -27,7 +27,7 @@ export default class GuildData extends Map<string, GuildMusic> {
 class GuildMusic {
 
   readonly _404 = "https://http.cat/404.jpg"
-  readonly userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:107.0) Gecko/20100101 Firefox/107.0"
+  readonly userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0"
   private ffmpeg?: ChildProcessWithoutNullStreams
   readonly guildId: string
   public voiceChannelId?: string
@@ -119,6 +119,7 @@ class GuildMusic {
     try { new URL(url) }
     catch { return }
     const ytdlp = spawnChildProcess("yt-dlp", [
+      "--add-header", "User-Agent:" + this.userAgent,
       "--print", "extractor",
       "--print", "webpage_url",
       "--print", "title",
@@ -157,6 +158,7 @@ class GuildMusic {
     try { new URL(query) }
     catch { query = "ytsearch1:" + query }
     const ytdlp = spawnChildProcess("yt-dlp", [
+      "--add-header", "User-Agent:" + this.userAgent,
       "--print", "extractor",
       "--print", "webpage_url",
       "--print", "title",
@@ -241,6 +243,7 @@ class GuildMusic {
     }
     
     const ytdlp = spawnChildProcess("yt-dlp", [
+      "--add-header", "User-Agent:" + this.userAgent,
       "--print", "url", 
       "-f", "ba", 
       track.url,
