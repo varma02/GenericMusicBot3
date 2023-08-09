@@ -65,5 +65,5 @@ git clone https://github.com/varma02/GenericMusicBot3.git
 5. Run `npm install` to install dependencies
 6. Run `npm start` 
 
-## Usage
-You are smart, you can figure it out
+---
+GenericMusicBot3 © 2023 by Váradi Marcell (varma02@Github) is licensed under [CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/)
