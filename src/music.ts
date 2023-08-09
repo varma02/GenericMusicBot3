@@ -269,7 +269,7 @@ class GuildMusic {
       "-vn", // No video
       "-re", // Read at native speed
       "-ss", `${position}ms`, // The start time in millis
-      "-reconnect", "1", "-multiple_requests", "1", // Reconnect
+      "-reconnect", "1", "-reconnect_streamed", "1", // Reconnect
       "-user_agent", this.userAgent, // pls don't ban me
       "-i", url, // Set input to stream URL
       "-acodec", "libopus", // Get an opus stream

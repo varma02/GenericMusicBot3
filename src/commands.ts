@@ -268,7 +268,7 @@ export const Commands: {[k:string]:ICommand} = {
 						.setCustomId("next")
 						.setEmoji("⏩")
 						.setStyle(ButtonStyle.Secondary))
-				const message = await interaction.reply({embeds: [buildEmbed()], components: [actionRow]})
+				const message = await interaction.reply({embeds: [buildEmbed()], components: guildMusic.queue.length > 11 ? [actionRow] : []})
 				const collector = message.createMessageComponentCollector({componentType: ComponentType.Button, time: 60000})
 				collector.on("collect", (compInteraction) => {
 					if (!compInteraction.isButton()) return
