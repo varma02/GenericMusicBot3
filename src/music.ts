@@ -294,7 +294,7 @@ class GuildMusic {
         console.warn("Error sending opus packet to guild %s at track %s\n\t%s", this.guildId, track.url, err)
       }
     })
-    this.ffmpeg.stderr.on("data", (err) => console.debug("FFMPEG error in guild %s\n\t%s", this.guildId, err))
+    this.ffmpeg.stderr.on("data", (err) => !`${err}`.includes('Error in the pull function') && console.debug("FFMPEG error in guild %s\n\t%s", this.guildId, err))
     
     this.status = "Playing"
     if (this.announceChannel) {
