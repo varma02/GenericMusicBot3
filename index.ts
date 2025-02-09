@@ -2,9 +2,6 @@ import { Bot } from "./src/bot"
 
 console.log("Starting up...")
 
-const dotenv = require("dotenv")
-dotenv.config()
-
 const bot = new Bot()
 
 for (const x of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
